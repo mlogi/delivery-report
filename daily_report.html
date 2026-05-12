@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="軽貨物日報">
+<title>軽貨物日報</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
+#app { padding: 14px; max-width: 480px; margin: 0 auto; }
+#header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e0ddd6; }
+#header h1 { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+#date-label { font-size: 13px; color: #888; }
+.tab-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+.tab { flex: 1; padding: 9px; font-size: 13px; font-weight: 500; border-radius: 10px; border: 1px solid #d8d5cc; background: #eceae4; color: #888; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+.tab.active { background: #fff; color: #1a1a1a; border-color: #b0ada6; }
+.progress-bar-wrap { height: 4px; background: #e0ddd6; border-radius: 2px; margin-bottom: 14px; }
+.progress-bar-fill { height: 4px; background: #3a9e6f; border-radius: 2px; transition: width 0.3s; }
+.section-title { font-size: 11px; font-weight: 600; color: #aaa; letter-spacing: 0.06em; margin: 14px 0 7px; text-transform: none; }
+.stop-card { background: #fff; border: 1px solid #e0ddd6; border-radius: 12px; padding: 11px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; -webkit-tap-highlight-color: transparent; }
+.stop-card.arrived { border-color: #3a9e6f; background: #f0faf5; }
+.stop-card.disabled-card { opacity: 0.38; pointer-events: none; }
+.stop-name { flex: 1; font-size: 14px; font-weight: 500; color: #1a1a1a; }
+.stop-card.arrived .stop-name { color: #2d7d57; }
+.stop-badge { font-size: 11px; color: #aaa; padding: 2px 8px; border: 1px solid #e0ddd6; border-radius: 20px; white-space: nowrap; }
+.arrive-btn { background: #f0ede6; border: 1px solid #d8d5cc; border-radius: 9px; font-size: 13px; font-weight: 500; color: #1a1a1a; padding: 8px 14px; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; transition: background 0.1s; }
+.arrive-btn:active { background: #e0ddd6; transform: scale(0.97); }
+.time-stamp { font-size: 16px; font-weight: 600; color: #2d7d57; display: none; }
+.stop-card.arrived .time-stamp { display: block; }
+.stop-card.arrived .arrive-btn { display: none; }
+.undo-btn { background: none; border: none; font-size: 11px; color: #bbb; cursor: pointer; padding: 2px 4px; text-decoration: underline; -webkit-tap-highlight-color: transparent; }
+.footer-section { margin-top: 16px; border-top: 1px solid #e0ddd6; padding-top: 14px; }
+.footer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.footer-label { font-size: 13px; color: #888; width: 76px; flex-shrink: 0; }
+.footer-value { font-size: 15px; font-weight: 600; color: #1a1a1a; flex: 1; }
+.footer-input { flex: 1; font-size: 15px; border: 1px solid #d8d5cc; border-radius: 9px; padding: 8px 12px; background: #fff; color: #1a1a1a; -webkit-appearance: none; }
+.footer-input:focus { outline: none; border-color: #3a9e6f; }
+.action-btn { width: 100%; padding: 13px; font-size: 14px; font-weight: 600; border-radius: 12px; cursor: pointer; margin-top: 8px; border: none; -webkit-tap-highlight-color: transparent; transition: opacity 0.15s; }
+.action-btn:active { opacity: 0.75; }
+.btn-home { background: #f0ede6; border: 1px solid #d8d5cc !important; border: none; color: #1a1a1a; }
+.btn-save { background: #3a9e6f; color: #fff; }
+.btn-monthly { background: #2a6abf; color: #fff; }
+.btn-danger { background: #f0ede6; color: #c0392b; font-size: 12px; padding: 10px; margin-top: 4px; border: 1px solid #e0b0b0 !important; }
+.save-status { font-size: 12px; color: #3a9e6f; text-align: center; margin-top: 8px; min-height: 18px; }
+.saved-days { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.day-chip { font-size: 12px; padding: 4px 11px; border-radius: 20px; background: #eceae4; border: 1px solid #e0ddd6; color: #666; }
+.day-chip.today-chip { background: #f0faf5; border-color: #3a9e6f; color: #2d7d57; }
+.empty-msg { font-size: 13px; color: #aaa; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>軽貨物日報</h1>
+    <span id="date-label"></span>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" id="tab1" onclick="switchTab(1)">1便</div>
+    <div class="tab" id="tab2" onclick="switchTab(2)">2便</div>
+    <div class="tab" id="tab3" onclick="switchTab(3)">月次</div>
+  </div>
+
+  <div id="main-view">
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+    <div id="stops-container"></div>
+    <div class="footer-section">
+      <div class="footer-row">
+        <span class="footer-label">帰社時間</span>
+        <span class="footer-value" id="home-time-display">--:--</span>
+        <button class="action-btn btn-home" onclick="recordHome()" style="width:auto;margin:0;padding:8px 14px;font-size:13px;">帰社</button>
+      </div>
+      <div class="footer-row">
+        <span class="footer-label">走行距離</span>
+        <input class="footer-input" id="mileage-input" type="number" placeholder="km" oninput="autoSave()" />
+      </div>
+      <button class="action-btn btn-save" onclick="saveDay()">本日の記録を保存</button>
+      <div class="save-status" id="save-status"></div>
+    </div>
+  </div>
+
+  <div id="monthly-view" style="display:none;">
+    <div class="section-title">保存済みの日付</div>
+    <div class="saved-days" id="saved-days-list"></div>
+    <button class="action-btn btn-monthly" onclick="exportMonthly()" style="margin-top:16px;">今月分をテキスト出力</button>
+    <button class="action-btn btn-danger" onclick="clearAll()">全データを削除</button>
+  </div>
+
+  <div id="export-view" style="display:none;">
+    <div class="section-title">出力データ</div>
+    <textarea id="export-text" style="width:100%;height:60vh;font-size:12px;font-family:monospace;border:1px solid #d8d5cc;border-radius:10px;padding:12px;background:#fff;color:#1a1a1a;resize:none;" readonly></textarea>
+    <button class="action-btn btn-save" onclick="copyText()" style="margin-top:10px;">コピー</button>
+    <button class="action-btn btn-home" onclick="switchTab(3)" style="margin-top:6px;">戻る</button>
+    <div class="save-status" id="copy-status"></div>
+  </div>
+</div>
+
+<script>
+const STOPS = {
+  1: [
+    { id: 's1', name: 'KFC学園前', days: 'all' },
+    { id: 's2', name: 'OK餅飯殿', days: 'all' },
+    { id: 's3', name: 'ビッグなら', days: 'all' },
+    { id: 's4', name: 'KFC大安寺', days: 'all' },
+    { id: 's5', name: '天スタ平城', days: 'all' },
+    { id: 's6', name: '天スタJR奈良', days: 'all' },
+    { id: 's7', name: '春日野', days: 'opt' },
+  ],
+  2: [
+    { id: 's8', name: '今井 (1回目)', days: 'all' },
+    { id: 's9', name: '今井 (2回目)', days: 'opt' },
+  ]
+};
+
+const DAY_NAMES = ['日','月','火','水','木','金','土'];
+const STORAGE_KEY = 'delivery_log_v1';
+
+let currentTab = 1;
+let times = {};
+let homeTime = { 1: null, 2: null };
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function todayLabel() {
+  const d = new Date();
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function nowStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function dayOfWeek() { return new Date().getDay(); }
+
+function isTodayActive(stop) {
+  if (stop.days === 'all') return true;
+  if (stop.days === 'opt') return false;
+  return stop.days.includes(String(dayOfWeek()));
+}
+
+function getAllData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+function saveDay() {
+  const data = getAllData();
+  const km = document.getElementById('mileage-input').value;
+  data[todayKey()] = { times, homeTime, mileage: km, savedAt: nowStr() };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const el = document.getElementById('save-status');
+  el.textContent = '保存しました（' + nowStr() + '）';
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+function autoSave() {
+  const data = getAllData();
+  if (data[todayKey()]) {
+    data[todayKey()].mileage = document.getElementById('mileage-input').value;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+}
+
+function loadToday() {
+  const data = getAllData();
+  const today = data[todayKey()];
+  if (today) {
+    times = today.times || {};
+    homeTime = today.homeTime || { 1: null, 2: null };
+    const km = today.mileage || '';
+    const inp = document.getElementById('mileage-input');
+    if (inp && km) inp.value = km;
+  }
+}
+
+function switchTab(n) {
+  currentTab = n;
+  ['tab1','tab2','tab3'].forEach((id,i) => {
+    document.getElementById(id).className = 'tab' + (i+1===n?' active':'');
+  });
+  document.getElementById('main-view').style.display = n <= 2 ? '' : 'none';
+  document.getElementById('monthly-view').style.display = n === 3 ? '' : 'none';
+  document.getElementById('export-view').style.display = 'none';
+  if (n === 3) renderMonthly();
+  else render();
+}
+
+function arrive(id) {
+  times[id] = nowStr();
+  render();
+  saveDay();
+}
+
+function undo(id) {
+  delete times[id];
+  render();
+  saveDay();
+}
+
+function recordHome() {
+  homeTime[currentTab] = nowStr();
+  document.getElementById('home-time-display').textContent = homeTime[currentTab];
+  saveDay();
+}
+
+function stopCard(s, disabled) {
+  const arrived = !!times[s.id];
+  const cls = arrived ? 'stop-card arrived' : disabled ? 'stop-card disabled-card' : 'stop-card';
+  const badge = s.days === 'opt' ? '不定期' : '';
+  const nameText = s.name;
+  const timeText = times[s.id] || '';
+  let inner = '<span class="stop-name">' + nameText + '</span>';
+  if (badge && !arrived) inner += '<span class="stop-badge">' + badge + '</span>';
+  inner += '<span class="time-stamp">' + timeText + '</span>';
+  if (arrived) {
+    inner += '<button class="undo-btn" onclick="undo(\'' + s.id + '\')">取消</button>';
+  } else {
+    inner += '<button class="arrive-btn" onclick="arrive(\'' + s.id + '\')">到着</button>';
+  }
+  return '<div class="' + cls + '">' + inner + '</div>';
+}
+
+function render() {
+  if (currentTab > 2) return;
+  const stops = STOPS[currentTab];
+  const fixed = stops.filter(function(s){ return s.days !== 'opt'; });
+  const opt = stops.filter(function(s){ return s.days === 'opt'; });
+  let html = '';
+  if (fixed.length) {
+    html += '<div class="section-title">本日の配送先</div>';
+    fixed.forEach(function(s){ html += stopCard(s, false); });
+  }
+  if (opt.length) {
+    html += '<div class="section-title">不定期・追加便</div>';
+    opt.forEach(function(s){ html += stopCard(s, false); });
+  }
+  document.getElementById('stops-container').innerHTML = html;
+  const total = fixed.length + opt.length;
+  const done = fixed.concat(opt).filter(function(s){ return times[s.id]; }).length;
+  document.getElementById('progress-fill').style.width = (total > 0 ? Math.round(done/total*100) : 0) + '%';
+  document.getElementById('home-time-display').textContent = homeTime[currentTab] || '--:--';
+}
+
+function renderMonthly() {
+  const data = getAllData();
+  const keys = Object.keys(data).sort();
+  const list = document.getElementById('saved-days-list');
+  if (keys.length === 0) {
+    list.innerHTML = '<span class="empty-msg">まだ保存されたデータがありません</span>';
+    return;
+  }
+  list.innerHTML = keys.map(k => {
+    const d = new Date(k + 'T00:00:00');
+    const dow = DAY_NAMES[d.getDay()];
+    const isToday = k === todayKey();
+    return `<span class="day-chip${isToday?' today-chip':''}">${k.slice(5)}（${dow}）</span>`;
+  }).join('');
+}
+
+function exportMonthly() {
+  const data = getAllData();
+  const thisMonth = todayKey().slice(0,7);
+  const keys = Object.keys(data).filter(k => k.startsWith(thisMonth)).sort();
+  if (keys.length === 0) { alert('今月の保存データがありません。'); return; }
+  let lines = [`【月次日報】${thisMonth.replace('-','/')}`, ''];
+  keys.forEach(k => {
+    const d = new Date(k + 'T00:00:00');
+    const dow = DAY_NAMES[d.getDay()];
+    const rec = data[k];
+    lines.push(`─ ${k.slice(5)}（${dow}） ─`);
+    STOPS[1].forEach(s => {
+      const t = rec.times?.[s.id] || '　　　';
+      lines.push(`  ${s.name}　${t}`);
+    });
+    if (rec.homeTime?.[1]) lines.push(`  帰社　${rec.homeTime[1]}`);
+    lines.push(`  ─ 2便 ─`);
+    STOPS[2].forEach(s => {
+      const t = rec.times?.[s.id] || '　　　';
+      lines.push(`  ${s.name}　${t}`);
+    });
+    if (rec.homeTime?.[2]) lines.push(`  帰社　${rec.homeTime[2]}`);
+    if (rec.mileage) lines.push(`  走行距離: ${rec.mileage}km`);
+    lines.push('');
+  });
+
+  document.getElementById('monthly-view').style.display = 'none';
+  document.getElementById('export-view').style.display = '';
+  document.getElementById('export-text').value = lines.join('\n');
+}
+
+function copyText() {
+  const ta = document.getElementById('export-text');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try {
+    navigator.clipboard.writeText(ta.value).then(() => {
+      const el = document.getElementById('copy-status');
+      el.textContent = 'コピーしました';
+      setTimeout(() => { el.textContent = ''; }, 2000);
+    });
+  } catch(e) {
+    document.execCommand('copy');
+    const el = document.getElementById('copy-status');
+    el.textContent = 'コピーしました';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }
+}
+
+function clearAll() {
+  if (confirm('全データを削除しますか？この操作は取り消せません。')) {
+    localStorage.removeItem(STORAGE_KEY);
+    times = {}; homeTime = { 1: null, 2: null };
+    document.getElementById('mileage-input').value = '';
+    render();
+    renderMonthly();
+  }
+}
+
+function updateDateLabel() {
+  document.getElementById('date-label').textContent = todayLabel() + '（' + DAY_NAMES[dayOfWeek()] + '）';
+}
+
+// 日付またぎ検知：1分ごとにチェックして日付が変わったらリセット
+let lastDate = todayKey();
+setInterval(() => {
+  const current = todayKey();
+  if (current !== lastDate) {
+    lastDate = current;
+    times = {}; homeTime = { 1: null, 2: null };
+    document.getElementById('mileage-input').value = '';
+    loadToday();
+    updateDateLabel();
+    render();
+  }
+}, 60000);
+
+updateDateLabel();
+loadToday();
+render();
+</script>
+</body>
+</html>
